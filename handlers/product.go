@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"strconv"
-	"github.com/gofiber/fiber/v2"
 	"order-inventory/config"
 	"order-inventory/models"
 	"order-inventory/pricing" // Make sure this package exists
+	"strconv"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func CreateProduct(c *fiber.Ctx) error {
@@ -97,14 +98,14 @@ func UpdateStock(c *fiber.Ctx) error {
 	var stockUpdate struct {
 		Stock int `json:"stock"`
 	}
-	
+
 	if err := c.BodyParser(&stockUpdate); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"message": "Invalid request",
 		})
 	}
 
-	// Update stock
+	// Update stock - the trigger will handle price updates
 	result := config.DB.Model(&models.Product{}).Where("id = ?", id).Update("stock", stockUpdate.Stock)
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -112,17 +113,17 @@ func UpdateStock(c *fiber.Ctx) error {
 		})
 	}
 
-	// Recalculate price
-	newPrice, err := pricing.CalculateNewPrice(uint(productID))
+	// Optionally simulate the new price for the response
+	simulatedPrice, err := pricing.SimulatePriceChange(uint(productID), stockUpdate.Stock)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"message": "Could not update price",
+			"message": "Could not simulate price",
 		})
 	}
 
 	return c.JSON(fiber.Map{
-		"message": "Stock and price updated successfully",
-		"new_price": newPrice,
+		"message":         "Stock updated successfully",
+		"simulated_price": simulatedPrice,
 	})
 }
 
@@ -130,11 +131,11 @@ func UpdateStock(c *fiber.Ctx) error {
 func GetPriceHistory(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var priceHistory []models.PriceHistory
-	
+
 	result := config.DB.Where("product_id = ?", id).
 		Order("created_at desc").
 		Find(&priceHistory)
-		
+
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"message": "Could not fetch price history",

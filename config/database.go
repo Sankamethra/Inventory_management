@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"order-inventory/models"
+	"io/ioutil"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -33,5 +35,65 @@ func ConnectDatabase() {
 	}
 
 	// Auto Migrate
-	DB.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.OrderItem{})
+	DB.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.OrderItem{}, &models.PriceHistory{})
+
+	// Apply triggers
+	if err := applyTriggers(); err != nil {
+		log.Printf("Error applying triggers: %v", err)
+	}
+}
+
+func applyTriggers() error {
+	// Read triggers SQL file
+	content, err := ioutil.ReadFile("migrations/triggers.sql")
+	if err != nil {
+		return fmt.Errorf("error reading triggers file: %v", err)
+	}
+
+	// Convert content to string and normalize line endings
+	sqlContent := strings.ReplaceAll(string(content), "\r\n", "\n")
+
+	// Split by semicolon but preserve semicolons within function definitions
+	var statements []string
+	var currentStmt strings.Builder
+	lines := strings.Split(sqlContent, "\n")
+	inFunction := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "--") {
+			continue
+		}
+
+		if strings.Contains(line, "CREATE OR REPLACE FUNCTION") {
+			inFunction = true
+		}
+
+		currentStmt.WriteString(line)
+		currentStmt.WriteString("\n")
+
+		if strings.HasSuffix(line, "LANGUAGE plpgsql;") {
+			inFunction = false
+			statements = append(statements, currentStmt.String())
+			currentStmt.Reset()
+		} else if !inFunction && strings.HasSuffix(line, ";") {
+			statements = append(statements, currentStmt.String())
+			currentStmt.Reset()
+		}
+	}
+
+	// Execute each statement
+	for _, stmt := range statements {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+
+		if err := DB.Exec(stmt).Error; err != nil {
+			log.Printf("Error executing statement: %s", stmt)
+			return fmt.Errorf("error executing trigger: %v", err)
+		}
+	}
+
+	return nil
 }

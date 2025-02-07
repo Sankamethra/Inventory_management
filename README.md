@@ -162,59 +162,116 @@ Authorization: Bearer <your-token>
 - NewPrice
 - Reason
 
+## Database Triggers
+
+The system implements two main database triggers for automatic price adjustments and inventory management:
+
+1. **Dynamic Pricing Trigger (`product_price_update`):**
+   - Automatically adjusts product prices based on:
+     - Current stock levels
+     - Recent demand (orders in the last 7 days)
+   - Creates price history records for tracking changes
+   - Triggered when product stock is updated
+
+2. **Inventory Management Trigger (`inventory_update`):**
+   - Automatically updates product stock when new orders are placed
+   - Ensures real-time inventory tracking
+   - Triggered when new order items are created
+
+### Price Adjustment Factors
+
+Stock-based adjustments:
+- Very low stock (≤5): +30% markup
+- Low stock (≤20): +20% markup
+- Medium stock (≤50): +10% markup
+- Normal stock (>50): No markup
+
+Demand-based adjustments:
+- Very high demand (≥100 orders/week): +25% markup
+- High demand (≥50 orders/week): +15% markup
+- Medium demand (≥20 orders/week): +10% markup
+- Low demand (<20 orders/week): No markup
+
 ## Testing API Endpoints
 
 ### Authentication
 
 ```bash
-# Signup
+# 1. User Signup
 curl -X POST http://localhost:3000/api/signup \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "test@example.com",
+    "email": "user@example.com",
     "password": "password123",
     "first_name": "John",
     "last_name": "Doe"
   }'
 
-# Login
+# 2. User Login (save the returned token)
 curl -X POST http://localhost:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "test@example.com",
+    "email": "user@example.com",
     "password": "password123"
   }'
-
 ```
 
-### Products
+### Product Management
 
 ```bash
-# Create Product
+# 1. Create Product (Admin only)
 curl -X POST http://localhost:3000/api/products \
-  -H "Authorization: Bearer <your-token>" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Product",
-    "description": "Test Description",
-    "price": 99.99,
-    "base_price": 89.99,
-    "stock": 100
+    "description": "Product Description",
+    "price": 100.00,
+    "base_price": 90.00,
+    "stock": 50
   }'
-```
 
-```bash
-# Get Products
+# 2. Get All Products
 curl -X GET http://localhost:3000/api/products \
-  -H "Authorization: Bearer <your-token>"
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 3. Get Single Product
+curl -X GET http://localhost:3000/api/products/1 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 4. Update Product Stock (triggers price adjustment)
+curl -X PUT http://localhost:3000/api/products/1/stock \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "stock": 5
+  }'
+
+# 5. Get Product Price History
+curl -X GET http://localhost:3000/api/products/1/price-history \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 6. Update Product Details
+curl -X PUT http://localhost:3000/api/products/1 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Product",
+    "description": "Updated Description",
+    "base_price": 95.00
+  }'
+
+# 7. Delete Product (Admin only)
+curl -X DELETE http://localhost:3000/api/products/1 \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### Orders
+### Order Management
 
 ```bash
-# Create Order
+# 1. Create Order
 curl -X POST http://localhost:3000/api/orders \
-  -H "Authorization: Bearer <your-token>" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "items": [
@@ -225,22 +282,96 @@ curl -X POST http://localhost:3000/api/orders \
     ]
   }'
 
-```
-```bash
-# Get User Orders
+# 2. Get User Orders
 curl -X GET http://localhost:3000/api/orders \
-  -H "Authorization: Bearer <your-token>"
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 3. Get Single Order Details
+curl -X GET http://localhost:3000/api/orders/1 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 4. Get User Dashboard Stats
+curl -X GET http://localhost:3000/api/dashboard \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### Admin Routes
+### Admin Operations
 
 ```bash
-# Get System Stats (Admin only)
+# 1. Get All Orders (with filters)
+curl -X GET "http://localhost:3000/api/admin/orders?status=pending&sort_by=created_at&sort_order=desc" \
+  -H "Authorization: Bearer ADMIN_TOKEN"
+
+# 2. Get System Statistics
 curl -X GET http://localhost:3000/api/admin/stats \
-  -H "Authorization: Bearer <admin-token>"
+  -H "Authorization: Bearer ADMIN_TOKEN"
+
+# 3. Get Low Stock Products
+curl -X GET "http://localhost:3000/api/admin/products?stock_below=20" \
+  -H "Authorization: Bearer ADMIN_TOKEN"
 ```
+
+### Testing Dynamic Pricing
+
 ```bash
-# Get All Orders (Admin only)
-curl -X GET http://localhost:3000/api/admin/orders \
-  -H "Authorization: Bearer <admin-token>"
+# 1. Create test product
+curl -X POST http://localhost:3000/api/products \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Dynamic Price Test",
+    "description": "Test product for dynamic pricing",
+    "price": 100.00,
+    "base_price": 90.00,
+    "stock": 100
+  }'
+
+# 2. Create multiple orders to test demand-based pricing
+for i in {1..5}; do
+  curl -X POST http://localhost:3000/api/orders \
+    -H "Authorization: Bearer YOUR_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "items": [
+        {
+          "product_id": 1,
+          "quantity": 2
+        }
+      ]
+    }'
+done
+
+# 3. Update stock to test availability-based pricing
+curl -X PUT http://localhost:3000/api/products/1/stock \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "stock": 5
+  }'
+
+# 4. Check price history to verify dynamic pricing
+curl -X GET http://localhost:3000/api/products/1/price-history \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
+
+### Expected Behaviors
+
+1. Dynamic Pricing:
+   - Price increases with low stock:
+     * ≤5 items: +30%
+     * ≤20 items: +20%
+     * ≤50 items: +10%
+   - Price increases with high demand:
+     * ≥100 orders/week: +25%
+     * ≥50 orders/week: +15%
+     * ≥20 orders/week: +10%
+
+2. Inventory Management:
+   - Stock updates automatically when orders are placed
+   - Low stock triggers price adjustments
+   - Price history is recorded for all changes
+
+3. Order Processing:
+   - Orders are validated against available stock
+   - Multiple items can be ordered together
+   - Order history is maintained
