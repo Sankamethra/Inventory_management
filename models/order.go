@@ -6,18 +6,18 @@ import (
 
 type Order struct {
 	gorm.Model
-	UserID     uint        `gorm:"not null" json:"user_id"`
-	User       User        `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	Status     string      `gorm:"type:varchar(20);default:'pending'" json:"status"`
-	TotalPrice float64     `gorm:"not null" json:"total_price"`
-	OrderItems []OrderItem `gorm:"foreignKey:OrderID" json:"order_items"`
+	UserID     uint        `json:"user_id" gorm:"not null"`
+	Items      []OrderItem `json:"items" gorm:"foreignKey:OrderID"`
+	Status     string      `json:"status" gorm:"type:varchar(20);default:'pending'"`
+	TotalPrice float64     `json:"total_price" gorm:"not null"`
+	User       User        `json:"user" gorm:"foreignKey:UserID"`
 }
 
 type OrderItem struct {
 	gorm.Model
-	OrderID   uint    `gorm:"not null" json:"order_id"`
-	ProductID uint    `gorm:"not null" json:"product_id"`
-	Quantity  int     `gorm:"not null" json:"quantity"`
-	Price     float64 `gorm:"not null" json:"price"` // Price at the time of order
-	Product   Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
-} 
+	OrderID   uint    `json:"order_id" gorm:"not null"`
+	ProductID uint    `json:"product_id" gorm:"not null"`
+	Quantity  int     `json:"quantity" gorm:"not null"`
+	Price     float64 `json:"price" gorm:"not null"`
+	Product   Product `json:"product" gorm:"foreignKey:ProductID"`
+}

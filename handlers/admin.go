@@ -1,37 +1,50 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"order-inventory/config"
 	"order-inventory/models"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // GetAllOrders retrieves all orders with filters
 func GetAllOrders(c *fiber.Ctx) error {
-	var orders []models.Order
-	query := config.DB.Preload("User").Preload("OrderItems").Preload("OrderItems.Product")
+	// Get query parameters
+	status := c.Query("status")
+	sortBy := c.Query("sort_by", "created_at")
+	sortOrder := c.Query("sort_order", "desc")
+
+	// Build query
+	query := config.DB.Debug().
+		Preload("Items").         // Changed from OrderItems
+		Preload("Items.Product"). // Changed from OrderItems.Product
+		Preload("User")
 
 	// Apply filters
-	if status := c.Query("status"); status != "" {
+	if status != "" {
 		query = query.Where("status = ?", status)
-	}
-	if userID := c.Query("user_id"); userID != "" {
-		query = query.Where("user_id = ?", userID)
 	}
 
 	// Apply sorting
-	sortBy := c.Query("sort_by", "created_at")
-	sortOrder := c.Query("sort_order", "desc")
-	query = query.Order(sortBy + " " + sortOrder)
+	if sortOrder == "asc" {
+		query = query.Order(sortBy + " asc")
+	} else {
+		query = query.Order(sortBy + " desc")
+	}
 
-	result := query.Find(&orders)
-	if result.Error != nil {
+	var orders []models.Order
+	if err := query.Find(&orders).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
 			"message": "Could not fetch orders",
+			"error":   err.Error(),
 		})
 	}
 
-	return c.JSON(orders)
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   orders,
+	})
 }
 
 // GetSystemStats retrieves system-wide statistics

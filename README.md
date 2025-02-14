@@ -1,203 +1,91 @@
-# Order & Inventory Management System
+# Order and Inventory Management System
 
-A robust backend system built with Go (Fiber) for managing orders and inventory with dynamic pricing capabilities.
+A backend system in Go (Fiber) that manages orders and inventory with dynamic pricing based on demand and stock levels.
 
 ## Features
-
-- User Authentication (JWT-based)
-- Product Management
-- Order Processing
-- Inventory Tracking
-- User Dashboard with Statistics
-- Dynamic Pricing System
+- User and Admin authentication
+- Product management with dynamic pricing
+- Order processing and tracking
+- Inventory management
+- Admin dashboard with statistics
+- Dynamic pricing based on stock and demand
 
 ## Tech Stack
+- Go Fiber framework
+- PostgreSQL with GORM
+- JWT Authentication
 
-- **Language:** Go
-- **Framework:** Fiber
-- **Database:** PostgreSQL
-- **ORM:** GORM
-- **Authentication:** JWT
+## Project Setup
 
-## Prerequisites
+### 1. Prerequisites
+- Go (version 1.19 or later)
+- PostgreSQL (version 13 or later)
+- Git
 
-- Go 1.16 or higher
-- PostgreSQL 12 or higher
-- Make sure to have the following environment variables set in your `.env` file:
-
-```env
-DB_HOST=your_db_host
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-DB_NAME=your_db_name
-DB_PORT=your_db_port
-JWT_SECRET=your_jwt_secret
-```
-
-## Project Structure
-
-```
-├── config/
-│   └── database.go         # Database configuration
-├── handlers/
-│   ├── admin.go           # Admin handlers
-│   ├── auth.go            # Authentication handlers
-│   ├── order.go           # Order management handlers
-│   └── product.go         # Product management handlers
-├── middleware/
-│   ├── admin.go           # Admin middleware
-│   └── auth.go            # Authentication middleware
-├── models/
-│   ├── order.go           # Order and OrderItem models
-│   ├── product.go         # Product and PriceHistory models
-│   └── user.go            # User model
-├── pricing/
-│   └── dynamic_pricing.go # Dynamic pricing logic
-├── main.go                # Application entry point
-└── README.md
-```
-
-## API Endpoints
-
-### Public Endpoints
-
-```
-POST /api/login    - User login
-POST /api/signup   - User registration
-```
-
-### Protected Endpoints (Requires Authentication)
-
-#### Products
-```
-POST   /api/products      - Create a new product
-GET    /api/products      - Get all products
-GET    /api/products/:id  - Get product by ID
-PUT    /api/products/:id  - Update product
-PUT    /api/products/:id/stock        - Update product stock
-GET    /api/products/:id/price-history - Get product price history
-GET    /api/dashboard                 - Get user dashboard stats
-DELETE /api/products/:id  - Delete product
-```
-
-#### Orders
-```
-POST   /api/orders        - Create a new order
-GET    /api/orders        - Get user's orders
-GET    /api/orders/:id    - Get order details
-GET    /api/dashboard     - Get user dashboard statistics
-```
-
-## Installation & Setup
-
-1. Clone the repository:
+### 2. Installation
 ```bash
-git clone <repository-url>
-```
+# Clone the repository
+git clone https://github.com/yourusername/order-inventory-management.git
+cd order-inventory-management
 
-2. Install dependencies:
-```bash
+# Install dependencies
 go mod download
+go mod tidy
 ```
 
-3. Set up your environment variables in `.env` file
-
+### 3. Database Setup
+```bash
 # Create PostgreSQL database
-```bash
-createdb order_inventory
+psql -U postgres
+CREATE DATABASE order_management;
+\q
+
+# Database migrations will run automatically when you start the server
 ```
 
-# Copy environment file
-```bash
-cp .env.example .env
+### 4. Environment Configuration
+Create a `.env` file in the root directory:
+```env
+# Database Configuration
+DB_HOST=localhost
+DB_USER=postgres
+DB_PASSWORD=postgress
+DB_NAME=order_management
+DB_PORT=5432
+
+# Authentication
+JWT_SECRET=orderinventorymanagement
+SETUP_SECRET=orderinventorymanagement  # For admin creation
 ```
 
-# Update .env with your credentials
-
-4. Run the application:
+### 5. Run the Server
 ```bash
+# Start the server
 go run main.go
+
+# Server will start on http://localhost:3000
 ```
 
-The server will start on `http://localhost:3000`
+## API Usage
 
-## Authentication
-
-The system uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
-```
-Authorization: Bearer <your-token>
-```
-
-## Database Models
-
-### User
-- Email (unique)
-- Password (hashed)
-- FirstName
-- LastName
-- Role (admin/user)
-
-### Product
-- Name
-- Description
-- Price
-- BasePrice
-- Stock
-
-### Order
-- UserID
-- Status
-- TotalPrice
-- OrderItems
-
-### OrderItem
-- OrderID
-- ProductID
-- Quantity
-- Price
-
-### PriceHistory
-- ProductID
-- OldPrice
-- NewPrice
-- Reason
-
-## Database Triggers
-
-The system implements two main database triggers for automatic price adjustments and inventory management:
-
-1. **Dynamic Pricing Trigger (`product_price_update`):**
-   - Automatically adjusts product prices based on:
-     - Current stock levels
-     - Recent demand (orders in the last 7 days)
-   - Creates price history records for tracking changes
-   - Triggered when product stock is updated
-
-2. **Inventory Management Trigger (`inventory_update`):**
-   - Automatically updates product stock when new orders are placed
-   - Ensures real-time inventory tracking
-   - Triggered when new order items are created
-
-### Price Adjustment Factors
-
-Stock-based adjustments:
-- Very low stock (≤5): +30% markup
-- Low stock (≤20): +20% markup
-- Medium stock (≤50): +10% markup
-- Normal stock (>50): No markup
-
-Demand-based adjustments:
-- Very high demand (≥100 orders/week): +25% markup
-- High demand (≥50 orders/week): +15% markup
-- Medium demand (≥20 orders/week): +10% markup
-- Low demand (<20 orders/week): No markup
-
-## Testing API Endpoints
-
-### Authentication
-
+### 1. Initial Admin Setup
 ```bash
-# 1. User Signup
+# Create the first admin account
+curl -X POST http://localhost:3000/api/setup/admin \
+  -H "Content-Type: application/json" \
+  -H "Setup-Secret: orderinventorymanagement" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "adminpass123",
+    "first_name": "Admin",
+    "last_name": "User"
+  }'
+```
+
+### 2. Authentication
+
+#### User Registration
+```bash
 curl -X POST http://localhost:3000/api/signup \
   -H "Content-Type: application/json" \
   -d '{
@@ -206,72 +94,55 @@ curl -X POST http://localhost:3000/api/signup \
     "first_name": "John",
     "last_name": "Doe"
   }'
+```
 
-# 2. User Login (save the returned token)
+#### Login (Users & Admin)
+```bash
 curl -X POST http://localhost:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
     "password": "password123"
   }'
+
+# Save the token from the response for future requests
 ```
 
-### Product Management
+### 3. Product Management (Admin Only)
 
 ```bash
-# 1. Create Product (Admin only)
-curl -X POST http://localhost:3000/api/products \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+# Create product
+curl -X POST http://localhost:3000/api/admin/products \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Test Product",
-    "description": "Product Description",
+    "name": "Product Name",
+    "description": "Description",
     "price": 100.00,
     "base_price": 90.00,
     "stock": 50
   }'
 
-# 2. Get All Products
-curl -X GET http://localhost:3000/api/products \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 3. Get Single Product
-curl -X GET http://localhost:3000/api/products/1 \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 4. Update Product Stock (triggers price adjustment)
-curl -X PUT http://localhost:3000/api/products/1/stock \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+# Update stock
+curl -X PUT http://localhost:3000/api/admin/products/1/stock \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "stock": 5
+    "stock": 40
   }'
-
-# 5. Get Product Price History
-curl -X GET http://localhost:3000/api/products/1/price-history \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 6. Update Product Details
-curl -X PUT http://localhost:3000/api/products/1 \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Updated Product",
-    "description": "Updated Description",
-    "base_price": 95.00
-  }'
-
-# 7. Delete Product (Admin only)
-curl -X DELETE http://localhost:3000/api/products/1 \
-  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### Order Management
+### 4. Order Management
 
+#### For Users
 ```bash
-# 1. Create Order
+# View products
+curl -X GET http://localhost:3000/api/products \
+  -H "Authorization: Bearer USER_TOKEN"
+
+# Place order
 curl -X POST http://localhost:3000/api/orders \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Authorization: Bearer USER_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "items": [
@@ -282,96 +153,64 @@ curl -X POST http://localhost:3000/api/orders \
     ]
   }'
 
-# 2. Get User Orders
+# View orders
 curl -X GET http://localhost:3000/api/orders \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 3. Get Single Order Details
-curl -X GET http://localhost:3000/api/orders/1 \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 4. Get User Dashboard Stats
-curl -X GET http://localhost:3000/api/dashboard \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer USER_TOKEN"
 ```
 
-### Admin Operations
-
+#### For Admin
 ```bash
-# 1. Get All Orders (with filters)
-curl -X GET "http://localhost:3000/api/admin/orders?status=pending&sort_by=created_at&sort_order=desc" \
+# View all orders with filters
+curl -X GET "http://localhost:3000/api/admin/orders?status=pending&sort_by=created_at" \
   -H "Authorization: Bearer ADMIN_TOKEN"
 
-# 2. Get System Statistics
+# View system statistics
 curl -X GET http://localhost:3000/api/admin/stats \
   -H "Authorization: Bearer ADMIN_TOKEN"
-
-# 3. Get Low Stock Products
-curl -X GET "http://localhost:3000/api/admin/products?stock_below=20" \
-  -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
-### Testing Dynamic Pricing
+### 5. Dynamic Pricing System
 
-```bash
-# 1. Create test product
-curl -X POST http://localhost:3000/api/products \
-  -H "Authorization: Bearer ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Dynamic Price Test",
-    "description": "Test product for dynamic pricing",
-    "price": 100.00,
-    "base_price": 90.00,
-    "stock": 100
-  }'
+The system automatically adjusts product prices based on:
 
-# 2. Create multiple orders to test demand-based pricing
-for i in {1..5}; do
-  curl -X POST http://localhost:3000/api/orders \
-    -H "Authorization: Bearer YOUR_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "items": [
-        {
-          "product_id": 1,
-          "quantity": 2
-        }
-      ]
-    }'
-done
+1. Stock Levels
+   - ≤5 items: +30% price increase
+   - ≤20 items: +20% price increase
+   - ≤50 items: +10% price increase
 
-# 3. Update stock to test availability-based pricing
-curl -X PUT http://localhost:3000/api/products/1/stock \
-  -H "Authorization: Bearer ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "stock": 5
-  }'
+2. Demand (Orders per week)
+   - ≥100 orders: +25% price increase
+   - ≥50 orders: +15% price increase
+   - ≥20 orders: +10% price increase
 
-# 4. Check price history to verify dynamic pricing
-curl -X GET http://localhost:3000/api/products/1/price-history \
-  -H "Authorization: Bearer YOUR_TOKEN"
+### Available Query Parameters
+
+#### Product Listing
+```
+GET /api/products
+- search: Search by product name
+- min_price: Minimum price filter
+- max_price: Maximum price filter
+- sort_by: name, price, created_at
+- sort_order: asc, desc
 ```
 
-### Expected Behaviors
+#### Order Listing (Admin)
+```
+GET /api/admin/orders
+- status: pending, completed, cancelled
+- sort_by: created_at, total_price
+- sort_order: asc, desc
+```
 
-1. Dynamic Pricing:
-   - Price increases with low stock:
-     * ≤5 items: +30%
-     * ≤20 items: +20%
-     * ≤50 items: +10%
-   - Price increases with high demand:
-     * ≥100 orders/week: +25%
-     * ≥50 orders/week: +15%
-     * ≥20 orders/week: +10%
+## Troubleshooting
 
-2. Inventory Management:
-   - Stock updates automatically when orders are placed
-   - Low stock triggers price adjustments
-   - Price history is recorded for all changes
+1. Database Connection Issues:
+   - Verify PostgreSQL is running
+   - Check database credentials in .env
+   - Ensure database exists
 
-3. Order Processing:
-   - Orders are validated against available stock
-   - Multiple items can be ordered together
-   - Order history is maintained
+2. Authentication Issues:
+   - Verify JWT_SECRET in .env
+   - Check token expiration
+   - Ensure proper token format in Authorization header
